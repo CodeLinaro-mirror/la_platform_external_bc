@@ -4,6 +4,9 @@
 [![codecov][15]][16]
 [![Coverity Scan Build Status][17]][18]
 
+***WARNING: This project has moved to [https://git.yzena.com/][20] for [these
+reasons][21], though GitHub will remain a mirror.***
+
 This is an implementation of the [POSIX `bc` calculator][12] that implements
 [GNU `bc`][1] extensions, as well as the period (`.`) extension for the BSD
 flavor of `bc`.
@@ -24,9 +27,9 @@ This `bc` is Free and Open Source Software (FOSS). It is offered under the BSD
 ## Prerequisites
 
 This `bc` only requires a C99-compatible compiler and a (mostly) POSIX
-2008-compatible system with the XSI (X/Open System Interfaces) option group.
+2001-compatible system with the XSI (X/Open System Interfaces) option group.
 
-Since POSIX 2008 with XSI requires the existence of a C99 compiler as `c99`, any
+Since POSIX 2001 with XSI requires the existence of a C99 compiler as `c99`, any
 POSIX and XSI-compatible system will have everything needed.
 
 Systems that are known to work:
@@ -36,6 +39,8 @@ Systems that are known to work:
 * OpenBSD
 * NetBSD
 * Mac OSX
+* Solaris
+* AIX
 
 Please submit bug reports if this `bc` does not build out of the box on any
 system besides Windows. If Windows binaries are needed, they can be found at
@@ -162,7 +167,8 @@ EXECSUFFIX=<some_suffix> ./configure.sh
 If a package maintainer wishes to add both a prefix and a suffix, that is
 allowed.
 
-**Note**: The suggested name (and package name) is `bc-gh`.
+**Note**: The suggested name (and package name) when `bc` is not available is
+`bc-gh`.
 
 #### Karatsuba Number
 
@@ -227,9 +233,14 @@ To see what algorithms this `bc` uses, see the [algorithms manual][7].
 
 ## Locales
 
-Currently, this `bc` only has support for English (and US English), French and
-German locales. Patches are welcome for translations; use the existing `*.msg`
-files in `locales/` as a starting point.
+Currently, this `bc` only has support for English (and US English), French,
+German, Portuguese, Dutch, Polish, Russian, Japanese, and Chinese locales.
+Patches are welcome for translations; use the existing `*.msg` files in
+`locales/` as a starting point.
+
+In addition, patches for improvements are welcome; the last two messages in
+Portuguese were made with Google Translate, and the Dutch, Polish, Russian,
+Japanese, and Chinese locales were all generated with [DeepL][22].
 
 The message files provided assume that locales apply to all regions where a
 language is used, but this might not be true for, e.g., `fr_CA` and `fr_CH`.
@@ -248,7 +259,7 @@ Other projects based on this bc are:
 
 ## Language
 
-This `bc` is written in pure ISO C99, using POSIX 2008 APIs.
+This `bc` is written in pure ISO C99, using POSIX 2001 APIs.
 
 ## Commit Messages
 
@@ -268,6 +279,7 @@ Files:
 	.gitignore           The git ignore file (maintainer use only).
 	.travis.yml          The Travis CI file (maintainer use only).
 	codecov.yml          The Codecov file (maintainer use only).
+	configure            A symlink to configure.sh to make packaging easier.
 	configure.sh         The configure script.
 	functions.sh         A script with functions used by other scripts.
 	install.sh           Install script.
@@ -277,6 +289,7 @@ Files:
 	locale_install.sh    A script to install locales, if desired.
 	locale_uninstall.sh  A script to uninstall locales.
 	Makefile.in          The Makefile template.
+	manpage.sh           Script to generate man pages from ronn files.
 	NOTICE.md            List of contributors and copyright owners.
 	RELEASE.md           A checklist for making a release (maintainer use only).
 	release.sh           A script to test for release (maintainer use only).
@@ -310,3 +323,6 @@ Folders:
 [17]: https://img.shields.io/coverity/scan/16609.svg
 [18]: https://scan.coverity.com/projects/gavinhoward-bc
 [19]: ./manuals/benchmarks.md
+[20]: https://git.yzena.com/gavin/bc
+[21]: https://gavinhoward.com/2020/04/i-am-moving-away-from-github/
+[22]: https://www.deepl.com/translator
