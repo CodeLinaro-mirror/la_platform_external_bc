@@ -1,7 +1,7 @@
 /*
  * *****************************************************************************
  *
- * Copyright (c) 2018-2019 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2020 Gavin D. Howard and contributors.
  *
  * All rights reserved.
  *
@@ -33,49 +33,44 @@
  *
  */
 
+#include <assert.h>
 #include <ctype.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include <getopt.h>
+#include <unistd.h>
 
 #include <status.h>
 #include <vector.h>
 #include <read.h>
 #include <vm.h>
 #include <args.h>
+#include <opt.h>
 
-static const struct option bc_args_lopt[] = {
+static const BcOptLong bc_args_lopt[] = {
 
-	{ "expression", required_argument, NULL, 'e' },
-	{ "file", required_argument, NULL, 'f' },
-	{ "help", no_argument, NULL, 'h' },
-	{ "interactive", no_argument, NULL, 'i' },
-	{ "no-prompt", no_argument, NULL, 'P' },
+	{ "expression", BC_OPT_REQUIRED, 'e' },
+	{ "file", BC_OPT_REQUIRED, 'f' },
+	{ "help", BC_OPT_NONE, 'h' },
+	{ "interactive", BC_OPT_NONE, 'i' },
+	{ "no-prompt", BC_OPT_NONE, 'P' },
 #if BC_ENABLED
-	{ "global-stacks", no_argument, NULL, 'g' },
-	{ "mathlib", no_argument, NULL, 'l' },
-	{ "quiet", no_argument, NULL, 'q' },
-	{ "standard", no_argument, NULL, 's' },
-	{ "warn", no_argument, NULL, 'w' },
+	{ "global-stacks", BC_OPT_BC_ONLY, 'g' },
+	{ "mathlib", BC_OPT_BC_ONLY, 'l' },
+	{ "quiet", BC_OPT_BC_ONLY, 'q' },
+	{ "standard", BC_OPT_BC_ONLY, 's' },
+	{ "warn", BC_OPT_BC_ONLY, 'w' },
 #endif // BC_ENABLED
-	{ "version", no_argument, NULL, 'v' },
+	{ "version", BC_OPT_NONE, 'v' },
+	{ "version", BC_OPT_NONE, 'V' },
 #if DC_ENABLED
-	{ "extended-register", no_argument, NULL, 'x' },
+	{ "extended-register", BC_OPT_DC_ONLY, 'x' },
 #endif // DC_ENABLED
-	{ 0, 0, 0, 0 },
+	{ NULL, 0, 0 },
 
 };
-
-#if !BC_ENABLED
-static const char* const bc_args_opt = "e:f:hiPvVx";
-#elif !DC_ENABLED
-static const char* const bc_args_opt = "e:f:ghilPqsvVw";
-#else // BC_ENABLED && DC_ENABLED
-static const char* const bc_args_opt = "e:f:ghilPqsvVwx";
-#endif // BC_ENABLED && DC_ENABLED
 
 static void bc_args_exprs(BcVec *exprs, const char *str) {
 	bc_vec_concat(exprs, str);
@@ -101,12 +96,14 @@ static BcStatus bc_args_file(BcVec *exprs, const char *file) {
 BcStatus bc_args(int argc, char *argv[]) {
 
 	BcStatus s = BC_STATUS_SUCCESS;
-	int c, i, err = 0;
+	int c;
+	size_t i;
 	bool do_exit = false, version = false;
+	BcOpt opts;
 
-	i = optind = 0;
+	bc_opt_init(&opts, argv);
 
-	while ((c = getopt_long(argc, argv, bc_args_opt, bc_args_lopt, &i)) != -1) {
+	while ((c = bc_opt_parse(&opts, bc_args_lopt)) != -1) {
 
 		switch (c) {
 
@@ -118,13 +115,13 @@ BcStatus bc_args(int argc, char *argv[]) {
 
 			case 'e':
 			{
-				bc_args_exprs(&vm->exprs, optarg);
+				bc_args_exprs(&vm->exprs, opts.optarg);
 				break;
 			}
 
 			case 'f':
 			{
-				s = bc_args_file(&vm->exprs, optarg);
+				s = bc_args_file(&vm->exprs, opts.optarg);
 				if (BC_ERR(s)) return s;
 				break;
 			}
@@ -151,35 +148,35 @@ BcStatus bc_args(int argc, char *argv[]) {
 #if BC_ENABLED
 			case 'g':
 			{
-				if (BC_ERR(!BC_IS_BC)) err = c;
+				assert(BC_IS_BC);
 				vm->flags |= BC_FLAG_G;
 				break;
 			}
 
 			case 'l':
 			{
-				if (BC_ERR(!BC_IS_BC)) err = c;
+				assert(BC_IS_BC);
 				vm->flags |= BC_FLAG_L;
 				break;
 			}
 
 			case 'q':
 			{
-				if (BC_ERR(!BC_IS_BC)) err = c;
+				assert(BC_IS_BC);
 				vm->flags |= BC_FLAG_Q;
 				break;
 			}
 
 			case 's':
 			{
-				if (BC_ERR(!BC_IS_BC)) err = c;
+				assert(BC_IS_BC);
 				vm->flags |= BC_FLAG_S;
 				break;
 			}
 
 			case 'w':
 			{
-				if (BC_ERR(!BC_IS_BC)) err = c;
+				assert(BC_IS_BC);
 				vm->flags |= BC_FLAG_W;
 				break;
 			}
@@ -195,36 +192,28 @@ BcStatus bc_args(int argc, char *argv[]) {
 #if DC_ENABLED
 			case 'x':
 			{
-				if (BC_ERR(BC_IS_BC)) err = c;
+				assert(!BC_IS_BC);
 				vm->flags |= DC_FLAG_X;
 				break;
 			}
 #endif // DC_ENABLED
 
-			// Getopt printed an error message, but we should exit.
+			// An error message has been printed, but we should exit.
 			case '?':
+			case ':':
 			default:
 			{
 				return BC_STATUS_ERROR_FATAL;
 			}
-		}
-
-		if (BC_ERR(err)) {
-
-			for (i = 0; bc_args_lopt[i].name != NULL; ++i) {
-				if (bc_args_lopt[i].val == err) break;
-			}
-
-			return bc_vm_verr(BC_ERROR_FATAL_OPTION, err, bc_args_lopt[i].name);
 		}
 	}
 
 	if (version) bc_vm_info(NULL);
 	if (do_exit) exit((int) s);
 	if (vm->exprs.len > 1 || !BC_IS_BC) vm->flags |= BC_FLAG_Q;
-	if (argv[optind] != NULL && !strcmp(argv[optind], "--")) ++optind;
 
-	for (i = optind; i < argc; ++i) bc_vec_push(&vm->files, argv + i);
+	for (i = opts.optind; i < (size_t) argc; ++i)
+		bc_vec_push(&vm->files, argv + i);
 
 	return s;
 }

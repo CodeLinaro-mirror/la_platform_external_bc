@@ -1,7 +1,7 @@
 /*
  * *****************************************************************************
  *
- * Copyright (c) 2018-2019 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2020 Gavin D. Howard and contributors.
  *
  * All rights reserved.
  *
@@ -35,6 +35,8 @@
 
 #ifndef BC_STATUS_H
 #define BC_STATUS_H
+
+#include <stdint.h>
 
 #ifndef BC_ENABLED
 #define BC_ENABLED (1)
@@ -71,6 +73,8 @@ typedef enum BcError {
 	BC_ERROR_FATAL_BIN_FILE,
 	BC_ERROR_FATAL_PATH_DIR,
 	BC_ERROR_FATAL_OPTION,
+	BC_ERROR_FATAL_OPTION_NO_ARG,
+	BC_ERROR_FATAL_OPTION_ARG,
 
 	BC_ERROR_EXEC_IBASE,
 	BC_ERROR_EXEC_OBASE,
@@ -152,5 +156,25 @@ typedef enum BcError {
 #ifndef BC_DEBUG_CODE
 #define BC_DEBUG_CODE (0)
 #endif // BC_DEBUG_CODE
+
+// Workarounds for AIX's POSIX incompatibility.
+#ifndef SIZE_MAX
+#define SIZE_MAX __SIZE_MAX__
+#endif // SIZE_MAX
+#ifndef UINTMAX_C
+#define UINTMAX_C __UINTMAX_C
+#endif // UINTMAX_C
+#ifndef UINT32_C
+#define UINT32_C __UINT32_C
+#endif // UINT32_C
+#ifndef UINT_FAST32_MAX
+#define UINT_FAST32_MAX __UINT_FAST32_MAX__
+#endif // UINT_FAST32_MAX
+#ifndef UINT16_MAX
+#define UINT16_MAX __UINT16_MAX__
+#endif // UINT16_MAX
+#ifndef SIG_ATOMIC_MAX
+#define SIG_ATOMIC_MAX __SIG_ATOMIC_MAX__
+#endif // SIG_ATOMIC_MAX
 
 #endif // BC_STATUS_H

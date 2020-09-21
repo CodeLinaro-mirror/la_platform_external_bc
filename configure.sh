@@ -1,6 +1,6 @@
 #! /bin/sh
 #
-# Copyright (c) 2018-2019 Gavin D. Howard and contributors.
+# Copyright (c) 2018-2020 Gavin D. Howard and contributors.
 #
 # All rights reserved.
 #
@@ -49,18 +49,18 @@ usage() {
 	printf '       %s --help\n' "$script"
 	printf '       %s [-bD|-dB|-c] [-EfgGHMNPST] [-O OPT_LEVEL] [-k KARATSUBA_LEN]\n' "$script"
 	printf '       %s \\\n' "$script"
-	printf '           [--bc-only --disable-dc|--dc-only --disable-bc|--coverage]    \\\n'
-	printf '           [--debug --disable-extra-math --disable-generated-tests]      \\\n'
-	printf '           [--disable-history --disable-man-pages --disable-nls]         \\\n'
-	printf '           [--disable-prompt --disable-signal-handling --disable-strip]  \\\n'
-	printf '           [--opt=OPT_LEVEL] [--karatsuba-len=KARATSUBA_LEN]             \\\n'
-	printf '           [--prefix=PREFIX] [--bindir=BINDIR]                           \\\n'
-	printf '           [--datarootdir=DATAROOTDIR] [--datadir=DATADIR]               \\\n'
-	printf '           [--mandir=MANDIR] [--man1dir=MAN1DIR]                         \\\n'
-	printf '           [--force]                                                     \\\n'
+	printf '           [--bc-only --disable-dc|--dc-only --disable-bc|--coverage]      \\\n'
+	printf '           [--debug --disable-extra-math --disable-generated-tests]        \\\n'
+	printf '           [--disable-history --disable-man-pages --disable-nls]           \\\n'
+	printf '           [--disable-prompt --disable-signal-handling --disable-strip]    \\\n'
+	printf '           [--opt=OPT_LEVEL] [--karatsuba-len=KARATSUBA_LEN]               \\\n'
+	printf '           [--prefix=PREFIX] [--bindir=BINDIR] [--datarootdir=DATAROOTDIR] \\\n'
+	printf '           [--datadir=DATADIR] [--mandir=MANDIR] [--man1dir=MAN1DIR]       \\\n'
+	printf '           [--force]                                                       \\\n'
 	printf '\n'
 	printf '    -b, --bc-only\n'
-	printf '        Build bc only. It is an error if "-d" or "-B" are specified too.\n'
+	printf '        Build bc only. It is an error if "-d", "--dc-only", "-B", or "--disable-bc"\n'
+	printf '        are specified too.\n'
 	printf '    -B, --disable-bc\n'
 	printf '        Disable bc. It is an error if "-b", "--bc-only", "-D", or "--disable-dc"\n'
 	printf '        are specified too.\n'
@@ -69,7 +69,8 @@ usage() {
 	printf '        It is an error if either "-b" ("-D") or "-d" ("-B") is specified.\n'
 	printf '        Requires a compiler that use gcc-compatible coverage options\n'
 	printf '    -d, --dc-only\n'
-	printf '        Build dc only. It is an error if "-b" is specified too.\n'
+	printf '        Build dc only. It is an error if "-b", "--bc-only", "-D", or "--disable-dc"\n'
+	printf '        are specified too.\n'
 	printf '    -D, --disable-dc\n'
 	printf '        Disable dc. It is an error if "-d", "--dc-only" "-B", or "--disable-bc"\n'
 	printf '        are specified too.\n'
@@ -136,10 +137,16 @@ usage() {
 	printf '\n'
 	printf 'In addition, the following environment variables are used:\n'
 	printf '\n'
-	printf '    CC           C compiler. Must be compatible with POSIX c99.\n'
-	printf '                 Default is "c99".\n'
-	printf '    HOSTCC       Host C compiler. Must be compatible with POSIX c99.\n'
-	printf '                 Default is "$CC".\n'
+	printf '    CC           C compiler. Must be compatible with POSIX c99. If there is a\n'
+	printf '                 space in the basename of the compiler, the items after the\n'
+	printf '                 first space are assumed to be compiler flags, and in that case,\n'
+	printf '                 the flags are automatically moved into CFLAGS. Default is\n'
+	printf '                 "c99".\n'
+	printf '    HOSTCC       Host C compiler. Must be compatible with POSIX c99. If there is\n'
+	printf '                 a space in the basename of the compiler, the items after the\n'
+	printf '                 first space are assumed to be compiler flags, and in the case,\n'
+	printf '                 the flags are automatically moved into HOSTCFLAGS. Default is\n'
+	printf '                 "$CC".\n'
 	printf '    HOST_CC      Same as HOSTCC. If HOSTCC also exists, it is used.\n'
 	printf '    CFLAGS       C compiler flags.\n'
 	printf '    HOSTCFLAGS   CFLAGS for HOSTCC. Default is "$CFLAGS".\n'
@@ -212,7 +219,7 @@ replace_ext() {
 	_replace_ext_ext1="$2"
 	_replace_ext_ext2="$3"
 
-	_replace_ext_result=$(printf "$_replace_ext_file" | sed -e "s@\.$_replace_ext_ext1@\.$_replace_ext_ext2@")
+	_replace_ext_result=${_replace_ext_file%.$_replace_ext_ext1}.$_replace_ext_ext2
 
 	printf '%s\n' "$_replace_ext_result"
 }
@@ -278,7 +285,7 @@ gen_file_lists() {
 
 	if [ "$_gen_file_lists_use" -ne 0 ]; then
 
-		_gen_file_lists_replacement=$(ls $_gen_file_lists_filedir/*.c | tr '\n' ' ')
+		_gen_file_lists_replacement=$(cd "$_gen_file_lists_filedir" && find . ! -name . -prune -name "*.c" | cut -d/ -f2 | sed "s@^@$_gen_file_lists_filedir/@g" | tr '\n' ' ')
 		_gen_file_lists_contents=$(replace "$_gen_file_lists_contents" "$_gen_file_lists_needle_src" "$_gen_file_lists_replacement")
 
 		_gen_file_lists_replacement=$(replace_exts "$_gen_file_lists_replacement" "c" "o")
@@ -441,7 +448,7 @@ while getopts "bBcdDEfgGhHk:MNO:PST-" opt; do
 
 done
 
-if [ "$bc_only" -eq 1 -a "$dc_only" -eq 1 ]; then
+if [ "$bc_only" -eq 1 ] && [ "$dc_only" -eq 1 ]; then
 	usage "Can only specify one of -b(-D) or -d(-B)"
 fi
 
@@ -455,6 +462,66 @@ if [ "$karatsuba_len" -lt 16 ]; then
 fi
 
 set -e
+
+if [ -z "${LONG_BIT+set}" ]; then
+	LONG_BIT_DEFINE=""
+elif [ "$LONG_BIT" -lt 32 ]; then
+	usage "LONG_BIT is less than 32"
+else
+	LONG_BIT_DEFINE="-DBC_LONG_BIT=\$(BC_LONG_BIT)"
+fi
+
+if [ -z "$CC" ]; then
+	CC="c99"
+else
+	ccbase=$(basename "$CC")
+	suffix=" *"
+	prefix="* "
+
+	if [ "${ccbase%%$suffix}" != "$ccbase" ]; then
+		ccflags="${ccbase#$prefix}"
+		cc="${ccbase%%$suffix}"
+		ccdir=$(dirname "$CC")
+		if [ "$ccdir" = "." ] && [ "${CC#.}" = "$CC" ]; then
+			ccdir=""
+		else
+			ccdir="$ccdir/"
+		fi
+		CC="${ccdir}${cc}"
+		CFLAGS="$CFLAGS $ccflags"
+	fi
+fi
+
+if [ -z "$HOSTCC" ] && [ -z "$HOST_CC" ]; then
+	HOSTCC="$CC"
+elif [ -z "$HOSTCC" ]; then
+	HOSTCC="$HOST_CC"
+fi
+
+if [ "$HOSTCC" != "$CC" ]; then
+	ccbase=$(basename "$HOSTCC")
+	suffix=" *"
+	prefix="* "
+
+	if [ "${ccbase%%$suffix}" != "$ccbase" ]; then
+		ccflags="${ccbase#$prefix}"
+		cc="${ccbase%%$suffix}"
+		ccdir=$(dirname "$HOSTCC")
+		if [ "$ccdir" = "." ] && [ "${HOSTCC#.}" = "$HOSTCC" ]; then
+			ccdir=""
+		else
+			ccdir="$ccdir/"
+		fi
+		HOSTCC="${ccdir}${cc}"
+		HOSTCFLAGS="$HOSTCFLAGS $ccflags"
+	fi
+fi
+
+if [ -z "${HOSTCFLAGS+set}" ] && [ -z "${HOST_CFLAGS+set}" ]; then
+	HOSTCFLAGS="$CFLAGS"
+elif [ -z "${HOSTCFLAGS+set}" ]; then
+	HOSTCFLAGS="$HOST_CFLAGS"
+fi
 
 link="@printf 'No link necessary\\\\n'"
 main_exec="BC"
@@ -542,23 +609,9 @@ else
 
 fi
 
-if [ -z "${LONG_BIT+set}" ]; then
-	LONG_BIT_DEFINE=""
-elif [ "$LONG_BIT" -lt 32 ]; then
-	usage "LONG_BIT is less than 32"
-else
-	LONG_BIT_DEFINE="-DBC_LONG_BIT=\$(BC_LONG_BIT)"
-fi
-
-if [ -z "${HOSTCFLAGS+set}" -a -z "${HOST_CFLAGS+set}" ]; then
-	HOSTCFLAGS="$CFLAGS"
-elif [ -z "${HOSTCFLAGS+set}" ]; then
-	HOSTCFLAGS="$HOST_CFLAGS"
-fi
-
 if [ "$debug" -eq 1 ]; then
 
-	if [ -z "$CFLAGS" -a -z "$optimization" ]; then
+	if [ -z "$CFLAGS" ] && [ -z "$optimization" ]; then
 		CFLAGS="-O0"
 	fi
 
@@ -577,7 +630,7 @@ fi
 
 if [ "$coverage" -eq 1 ]; then
 
-	if [ "$bc_only" -eq 1 -o "$dc_only" -eq 1 ]; then
+	if [ "$bc_only" -eq 1 ] || [ "$dc_only" -eq 1 ]; then
 		usage "Can only specify -c without -b or -d"
 	fi
 
@@ -608,7 +661,7 @@ if [ -z "${BINDIR+set}" ]; then
 	BINDIR="$PREFIX/bin"
 fi
 
-if [ "$install_manpages" -ne 0 -o "$nls" -ne 0 ]; then
+if [ "$install_manpages" -ne 0 ] || [ "$nls" -ne 0 ]; then
 	if [ -z "${DATAROOTDIR+set}" ]; then
 		DATAROOTDIR="$PREFIX/share"
 	fi
@@ -633,16 +686,6 @@ else
 	uninstall_man_prereqs=""
 fi
 
-if [ -z "$CC" ]; then
-	CC="c99"
-fi
-
-if [ -z "$HOSTCC" -a -z "$HOST_CC" ]; then
-	HOSTCC="$CC"
-elif [ -z "$HOSTCC" ]; then
-	HOSTCC="$HOST_CC"
-fi
-
 if [ "$nls" -ne 0 ]; then
 
 	set +e
@@ -652,7 +695,7 @@ if [ "$nls" -ne 0 ]; then
 	flags="-DBC_ENABLE_NLS=1 -DBC_ENABLED=$bc -DDC_ENABLED=$dc -DBC_ENABLE_SIGNALS=$signals"
 	flags="$flags -DBC_ENABLE_HISTORY=$hist"
 	flags="$flags -DBC_ENABLE_EXTRA_MATH=$extra_math -I./include/"
-	flags="$flags -D_POSIX_C_SOURCE=200809L -D_XOPEN_SOURCE=700"
+	flags="$flags -D_POSIX_C_SOURCE=200112L -D_XOPEN_SOURCE=600"
 
 	"$HOSTCC" $HOSTCFLAGS $flags -c "src/vm.c" -o "$scriptdir/vm.o" > /dev/null 2>&1
 
@@ -665,10 +708,10 @@ if [ "$nls" -ne 0 ]; then
 	if [ "$err" -ne 0 ]; then
 		printf 'NLS does not work.\n'
 		if [ $force -eq 0 ]; then
-			printf 'Disabling NLS...\n'
+			printf 'Disabling NLS...\n\n'
 			nls=0
 		else
-			printf 'Forcing NLS...\n'
+			printf 'Forcing NLS...\n\n'
 		fi
 	else
 		printf 'NLS works.\n\n'
@@ -725,7 +768,7 @@ if [ "$hist" -eq 1 ]; then
 	flags="-DBC_ENABLE_HISTORY=1 -DBC_ENABLED=$bc -DDC_ENABLED=$dc -DBC_ENABLE_SIGNALS=$signals"
 	flags="$flags -DBC_ENABLE_NLS=$nls"
 	flags="$flags -DBC_ENABLE_EXTRA_MATH=$extra_math -I./include/"
-	flags="$flags -D_POSIX_C_SOURCE=200809L -D_XOPEN_SOURCE=700"
+	flags="$flags -D_POSIX_C_SOURCE=200112L -D_XOPEN_SOURCE=600"
 
 	"$HOSTCC" $HOSTCFLAGS $flags -c "src/history/history.c" -o "$scriptdir/history.o" > /dev/null 2>&1
 
@@ -738,20 +781,20 @@ if [ "$hist" -eq 1 ]; then
 	if [ "$err" -ne 0 ]; then
 		printf 'History does not work.\n'
 		if [ $force -eq 0 ]; then
-			printf 'Disabling history...\n'
+			printf 'Disabling history...\n\n'
 			hist=0
 		else
-			printf 'Forcing history...\n'
+			printf 'Forcing history...\n\n'
 		fi
 	else
-		printf 'History works.\n'
+		printf 'History works.\n\n'
 	fi
 
 	set -e
 
 fi
 
-if [ "$extra_math" -eq 1 -a "$bc" -ne 0 ]; then
+if [ "$extra_math" -eq 1 ] && [ "$bc" -ne 0 ]; then
 	BC_LIB2_O="\$(GEN_DIR)/lib2.o"
 else
 	BC_LIB2_O=""
@@ -772,7 +815,6 @@ else
 fi
 
 # Print out the values; this is for debugging.
-printf '\n'
 if [ "$bc" -ne 0 ]; then
 	printf 'Building bc\n'
 else
@@ -823,6 +865,7 @@ contents=$(gen_file_lists "$contents" "$scriptdir/src" "")
 contents=$(gen_file_lists "$contents" "$scriptdir/src/bc" "BC_" "$bc")
 contents=$(gen_file_lists "$contents" "$scriptdir/src/dc" "DC_" "$dc")
 contents=$(gen_file_lists "$contents" "$scriptdir/src/history" "HISTORY_" "$hist")
+contents=$(gen_file_lists "$contents" "$scriptdir/src/rand" "RAND_" "$extra_math")
 
 contents=$(replace "$contents" "BC_ENABLED" "$bc")
 contents=$(replace "$contents" "DC_ENABLED" "$dc")
