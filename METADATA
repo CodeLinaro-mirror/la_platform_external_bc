@@ -14,6 +14,7 @@ third_party {
   identifier {
     type: "Git"
     value: "https://github.com/gavinhoward/bc"
-    version: "7.0.3"
+    version: "c8dabac65d39fd527a9264a5e505a99b1d8df3d8"
+    closest_version: "7.0.3"
   }
 }
